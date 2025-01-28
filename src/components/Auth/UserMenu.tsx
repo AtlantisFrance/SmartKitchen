@@ -19,15 +19,18 @@ export function UserMenu({ email, onSignOut }: UserMenuProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
+        className="flex items-center text-gray-700 hover:text-gray-900"
       >
         <User className="w-5 h-5" />
-        <span className="text-sm">{email}</span>
+        <span className="hidden sm:inline-block text-sm ml-2">{email}</span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
           <div className="py-1">
+            <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100 sm:hidden">
+              {email}
+            </div>
             <button
               onClick={handleSignOut}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
