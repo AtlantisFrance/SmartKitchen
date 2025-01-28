@@ -463,75 +463,97 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <BalanceDisplay balance={balance} loading={loading} />
-          <UserMenu email={session.user.email} onSignOut={() => setSession(null)} />
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Image Generation</h1>
-            <button
-              onClick={resetForm}
-              className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              <PlusCircle className="w-5 h-5 mr-2" />
-              New Generation
-            </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 fixed w-full top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">AI Image Generator</h1>
+            </div>
+            <div className="flex items-center space-x-8">
+              <BalanceDisplay balance={balance} loading={loading} />
+              <div className="h-8 w-px bg-gray-200" /> {/* Taller vertical divider */}
+              <UserMenu email={session.user.email} onSignOut={() => setSession(null)} />
+            </div>
           </div>
-          
-          <InputMethodToggle 
-            inputMethod={inputMethod}
-            onMethodChange={setInputMethod}
-          />
-
-          {inputMethod === 'file' ? (
-            <ImageUploader onImageUpload={handleImageUpload} />
-          ) : (
-            <ImageUrlInput
-              imageUrl={imageUrl}
-              isImageLoading={isImageLoading}
-              onUrlChange={setImageUrl}
-              onSubmit={handleUrlSubmit}
-            />
-          )}
-
-          <ImagePreview 
-            image={image}
-            onError={() => {
-              setError('Failed to load image');
-              setImage(null);
-            }}
-          />
-
-          <PromptInputs
-            positivePrompt={positivePrompt}
-            negativePrompt={negativePrompt}
-            onPositivePromptChange={setPositivePrompt}
-            onNegativePromptChange={setNegativePrompt}
-          />
-
-          <TaskIdDisplay taskId={taskId} />
-
-          <GenerateButton
-            onClick={generateImage}
-            disabled={generating || !image || (inputMethod === 'url' && !isImageValid)}
-            generating={generating}
-          />
-
-          <ProgressIndicator progress={progress} />
-
-          <GeneratedImagesList 
-            generations={sessionGenerations}
-            currentImages={generatedImages}
-            onDelete={handleDeleteGeneration}
-          />
         </div>
+      </header>
 
-        <StatusMessages error={error} success={success} />
-      </div>
+      {/* Main Content */}
+      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Control Panel */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-medium text-gray-900">Image Generation</h2>
+                <button
+                  onClick={resetForm}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
+                >
+                  <PlusCircle className="w-5 h-5 mr-2" />
+                  New Generation
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-6 space-y-6">
+              <InputMethodToggle 
+                inputMethod={inputMethod}
+                onMethodChange={setInputMethod}
+              />
+
+              {inputMethod === 'file' ? (
+                <ImageUploader onImageUpload={handleImageUpload} />
+              ) : (
+                <ImageUrlInput
+                  imageUrl={imageUrl}
+                  isImageLoading={isImageLoading}
+                  onUrlChange={setImageUrl}
+                  onSubmit={handleUrlSubmit}
+                />
+              )}
+
+              <ImagePreview 
+                image={image}
+                onError={() => {
+                  setError('Failed to load image');
+                  setImage(null);
+                }}
+              />
+
+              <PromptInputs
+                positivePrompt={positivePrompt}
+                negativePrompt={negativePrompt}
+                onPositivePromptChange={setPositivePrompt}
+                onNegativePromptChange={setNegativePrompt}
+              />
+
+              <TaskIdDisplay taskId={taskId} />
+
+              <GenerateButton
+                onClick={generateImage}
+                disabled={generating || !image || (inputMethod === 'url' && !isImageValid)}
+                generating={generating}
+              />
+
+              <ProgressIndicator progress={progress} />
+            </div>
+          </div>
+
+          {/* Results Panel */}
+          <div className="space-y-6">
+            <GeneratedImagesList 
+              generations={sessionGenerations}
+              currentImages={generatedImages}
+              onDelete={handleDeleteGeneration}
+            />
+
+            <StatusMessages error={error} success={success} />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
