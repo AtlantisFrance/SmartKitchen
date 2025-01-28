@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Wallet, Upload, Image as ImageIcon, Link as LinkIcon, AlertCircle, PlusCircle } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
+import { supabase } from './lib/supabase';
+import { AuthForm } from './components/Auth/AuthForm';
+import { UserMenu } from './components/Auth/UserMenu';
+import { BalanceDisplay } from './components/Balance/BalanceDisplay';
+import { ImageUploader } from './components/ImageInput/ImageUploader';
+import { ImageUrlInput } from './components/ImageInput/ImageUrlInput';
+import { InputMethodToggle } from './components/ImageInput/InputMethodToggle';
+import { ImagePreview } from './components/ImagePreview/ImagePreview';
+import { PromptInputs } from './components/Prompts/PromptInputs';
+import { GeneratedImagesList } from './components/GeneratedImages/GeneratedImagesList';
+import { StatusMessages } from './components/StatusMessages/StatusMessages';
+import { GenerateButton } from './components/GenerateButton/GenerateButton';
+import { ProgressIndicator } from './components/Progress/ProgressIndicator';
+import { TaskIdDisplay } from './components/TaskId/TaskIdDisplay';
 
 interface ApiResponse {
   data?: {
@@ -29,7 +43,16 @@ interface StatusResponse {
   };
 }
 
+interface Generation {
+  id: string;
+  images: string[];
+  positivePrompt: string;
+  negativePrompt: string;
+  timestamp: number;
+}
+
 function App() {
+  const [session, setSession] = useState<any>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +63,7 @@ function App() {
   const [positivePrompt, setPositivePrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [sessionGenerations, setSessionGenerations] = useState<Generation[]>([]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<string>('');
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -49,17 +73,62 @@ function App() {
 
   const token = '49be0c4f-0a33-4a4a-a602-4f6f46a37a96';
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const resetForm = () => {
     setImage(null);
     setImageUrl('');
     setPositivePrompt('');
     setNegativePrompt('');
     setGeneratedImages([]);
+    setSessionGenerations([]);
     setError(null);
     setSuccess(null);
     setProgress('');
     setTaskId(null);
     setGenerating(false);
+  };
+
+  const handleDeleteGeneration = async (generationId: string) => {
+    try {
+      setError(null);
+      
+      // Remove from session state
+      setSessionGenerations(prev => prev.filter(gen => gen.id !== generationId));
+      
+      // If it's the current generation, clear it
+      if (generationId === taskId) {
+        setGeneratedImages([]);
+      }
+      
+      // Remove from database if user is logged in
+      if (session?.user) {
+        const { error: deleteError } = await supabase
+          .from('result_images')
+          .delete()
+          .eq('task_id', generationId)
+          .eq('user_id', session.user.id);
+
+        if (deleteError) throw deleteError;
+      }
+      
+      setSuccess('Generation deleted successfully');
+    } catch (err) {
+      console.error('Failed to delete generation:', err);
+      setError('Failed to delete generation');
+    }
   };
 
   const fetchBalance = async () => {
@@ -128,9 +197,6 @@ function App() {
     setTaskId(taskId);
     console.log(`[Polling] Starting polling for task: ${taskId}`);
     
-    // Clear previous generated images when starting a new generation
-    setGeneratedImages([]);
-    
     while (attempts < maxAttempts) {
       setProgress(`Checking status... Attempt ${attempts + 1}/${maxAttempts}`);
       console.log(`[Polling] Attempt ${attempts + 1}/${maxAttempts}`);
@@ -152,8 +218,38 @@ function App() {
         if (status.data.output?.output_url_list) {
           const urls = status.data.output.output_url_list;
           console.log('[Polling] Output URLs:', urls);
+          
+          // Add new generation to session history
+          const newGeneration: Generation = {
+            id: taskId,
+            images: urls,
+            positivePrompt,
+            negativePrompt,
+            timestamp: Date.now()
+          };
+          
+          setSessionGenerations(prev => [...prev, newGeneration]);
           setGeneratedImages(urls);
           setSuccess('Image generated successfully!');
+          
+          // Store the result in Supabase
+          if (session?.user) {
+            try {
+              const { error: insertError } = await supabase
+                .from('result_images')
+                .insert({
+                  user_id: session.user.id,
+                  image_url: urls[0], // Store the first generated image
+                  task_id: taskId,
+                  positive_prompt: positivePrompt,
+                  negative_prompt: negativePrompt
+                });
+              
+              if (insertError) throw insertError;
+            } catch (err) {
+              console.error('Failed to save result to database:', err);
+            }
+          }
         } else {
           console.warn('[Polling] No URLs in completed status');
           setError('No output images received');
@@ -188,15 +284,54 @@ function App() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-        console.log('[Image Upload] Image loaded successfully');
-      };
-      reader.readAsDataURL(file);
+    if (file && session?.user) {
+      try {
+        setError(null);
+        setSuccess(null);
+        
+        // Create temporary preview immediately for better UX
+        const previewUrl = URL.createObjectURL(file);
+        setImage(previewUrl);
+        
+        // Upload to Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${session.user.id}/${fileName}`;
+
+        const { error: uploadError, data } = await supabase.storage
+          .from('depthmaps')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('depthmaps')
+          .getPublicUrl(filePath);
+
+        // Save to depthmaps table
+        const { error: insertError } = await supabase
+          .from('depthmaps')
+          .insert({
+            user_id: session.user.id,
+            image_path: filePath
+          });
+
+        if (insertError) throw insertError;
+
+        // Update image state with the permanent URL
+        setImage(publicUrl);
+        setSuccess('Image uploaded successfully');
+        
+        // Clean up the temporary preview URL
+        URL.revokeObjectURL(previewUrl);
+      } catch (err) {
+        console.error('[Image Upload] Error:', err);
+        setError('Failed to upload image');
+        setImage(null);
+      }
     }
   };
 
@@ -210,7 +345,7 @@ function App() {
   };
 
   const handleUrlSubmit = async () => {
-    if (!imageUrl) return;
+    if (!imageUrl || !session?.user) return;
     
     setIsImageLoading(true);
     setIsImageValid(false);
@@ -219,6 +354,16 @@ function App() {
     try {
       const isValid = await validateImageUrl(imageUrl);
       if (isValid) {
+        // Save URL to depthmaps table
+        const { error: insertError } = await supabase
+          .from('depthmaps')
+          .insert({
+            user_id: session.user.id,
+            image_path: imageUrl
+          });
+
+        if (insertError) throw insertError;
+
         setImage(imageUrl);
         setIsImageValid(true);
         setError(null);
@@ -238,6 +383,11 @@ function App() {
   };
 
   const generateImage = async () => {
+    if (!session) {
+      setError('Please sign in to generate images');
+      return;
+    }
+
     if (!image) {
       setError('Please provide an image first');
       return;
@@ -308,23 +458,18 @@ function App() {
     fetchBalance();
   }, []);
 
+  if (!session) {
+    return <AuthForm onSuccess={() => fetchBalance()} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Balance Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <div className="flex items-center justify-center mb-4">
-            <Wallet className="w-6 h-6 text-blue-600 mr-2" />
-            <h2 className="text-xl font-bold text-gray-800">Credit Balance</h2>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-blue-600">
-              {loading ? '...' : balance !== null ? `$${balance.toFixed(2)}` : '---'}
-            </p>
-          </div>
+        <div className="flex justify-between items-center">
+          <BalanceDisplay balance={balance} loading={loading} />
+          <UserMenu email={session.user.email} onSignOut={() => setSession(null)} />
         </div>
 
-        {/* Image Generation Section */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Image Generation</h1>
@@ -337,174 +482,55 @@ function App() {
             </button>
           </div>
           
-          {/* Input Method Toggle */}
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex rounded-lg border border-gray-200">
-              <button
-                className={`px-4 py-2 rounded-l-lg ${inputMethod === 'file' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
-                onClick={() => setInputMethod('file')}
-              >
-                <Upload className="w-4 h-4 inline mr-2" />
-                File Upload
-              </button>
-              <button
-                className={`px-4 py-2 rounded-r-lg ${inputMethod === 'url' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
-                onClick={() => setInputMethod('url')}
-              >
-                <LinkIcon className="w-4 h-4 inline mr-2" />
-                URL Input
-              </button>
-            </div>
-          </div>
+          <InputMethodToggle 
+            inputMethod={inputMethod}
+            onMethodChange={setInputMethod}
+          />
 
-          {/* Image Input */}
           {inputMethod === 'file' ? (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Upload Depth Map</label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
-                      <span>Upload a file</span>
-                      <input type="file" className="sr-only" onChange={handleImageUpload} accept="image/*" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ImageUploader onImageUpload={handleImageUpload} />
           ) : (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Enter image URL"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isImageLoading}
-                />
-                <button
-                  onClick={handleUrlSubmit}
-                  disabled={!imageUrl || isImageLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                >
-                  {isImageLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    'Preview'
-                  )}
-                </button>
-              </div>
-            </div>
+            <ImageUrlInput
+              imageUrl={imageUrl}
+              isImageLoading={isImageLoading}
+              onUrlChange={setImageUrl}
+              onSubmit={handleUrlSubmit}
+            />
           )}
 
-          {/* Image Preview */}
-          {image && (
-            <div className="mt-4 mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Preview</h3>
-              <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                <img 
-                  src={image} 
-                  alt="Preview" 
-                  className="max-h-48 w-full object-contain"
-                  onError={() => {
-                    setError('Failed to load image');
-                    setImage(null);
-                  }}
-                />
-              </div>
-            </div>
-          )}
+          <ImagePreview 
+            image={image}
+            onError={() => {
+              setError('Failed to load image');
+              setImage(null);
+            }}
+          />
 
-          {/* Prompts */}
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Positive Prompt</label>
-              <textarea
-                value={positivePrompt}
-                onChange={(e) => setPositivePrompt(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Negative Prompt</label>
-              <textarea
-                value={negativePrompt}
-                onChange={(e) => setNegativePrompt(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-              />
-            </div>
-          </div>
+          <PromptInputs
+            positivePrompt={positivePrompt}
+            negativePrompt={negativePrompt}
+            onPositivePromptChange={setPositivePrompt}
+            onNegativePromptChange={setNegativePrompt}
+          />
 
-          {/* Task ID Display */}
-          {taskId && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Task ID:</span> {taskId}
-              </p>
-            </div>
-          )}
+          <TaskIdDisplay taskId={taskId} />
 
-          {/* Generate Button */}
-          <button
+          <GenerateButton
             onClick={generateImage}
             disabled={generating || !image || (inputMethod === 'url' && !isImageValid)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg 
-                     flex items-center justify-center transition duration-150 ease-in-out
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generating ? (
-              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-            ) : (
-              <ImageIcon className="w-5 h-5 mr-2" />
-            )}
-            {generating ? 'Generating...' : 'Generate Image'}
-          </button>
+            generating={generating}
+          />
 
-          {/* Progress */}
-          {progress && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center">
-                <RefreshCw className="w-4 h-4 mr-2 text-blue-600 animate-spin" />
-                <p className="text-sm text-blue-600">{progress}</p>
-              </div>
-            </div>
-          )}
+          <ProgressIndicator progress={progress} />
 
-          {/* Generated Images */}
-          {generatedImages.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Generated Images</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {generatedImages.map((url, index) => (
-                  <img key={index} src={url} alt={`Generated ${index + 1}`} className="rounded-lg shadow-md" />
-                ))}
-              </div>
-            </div>
-          )}
+          <GeneratedImagesList 
+            generations={sessionGenerations}
+            currentImages={generatedImages}
+            onDelete={handleDeleteGeneration}
+          />
         </div>
 
-        {/* Status Messages */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-600 text-sm">{success}</p>
-          </div>
-        )}
+        <StatusMessages error={error} success={success} />
       </div>
     </div>
   );
