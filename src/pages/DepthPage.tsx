@@ -60,6 +60,7 @@ function DepthPage({ session }: DepthPageProps) {
   const [imageUrl, setImageUrl] = useState('');
   const [positivePrompt, setPositivePrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
+  const [seed, setSeed] = useState('');
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [sessionGenerations, setSessionGenerations] = useState<Generation[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -76,6 +77,7 @@ function DepthPage({ session }: DepthPageProps) {
     setImageUrl('');
     setPositivePrompt('');
     setNegativePrompt('');
+    setSeed('');
     setGeneratedImages([]);
     setSessionGenerations([]);
     setError(null);
@@ -188,6 +190,7 @@ function DepthPage({ session }: DepthPageProps) {
                 .insert({
                   user_id: session.user.id,
                   image_url: urls[0],
+                  seed: seed || null,
                   task_id: taskId,
                   positive_prompt: positivePrompt,
                   negative_prompt: negativePrompt
@@ -406,7 +409,8 @@ function DepthPage({ session }: DepthPageProps) {
         input: {
           CLIPTextEncode_text_7: negativePrompt,
           LoadImage_image_17: image,
-          CLIPTextEncode_text_23: positivePrompt
+          CLIPTextEncode_text_23: positivePrompt,
+          easy_int_value_60: seed || Math.floor(Math.random() * 1000000).toString()
         },
         workflow_id: "a254baa6-52eb-4a06-9a0f-ad9a9619b842",
         webhook: ""
@@ -496,8 +500,10 @@ function DepthPage({ session }: DepthPageProps) {
           <PromptInputs
             positivePrompt={positivePrompt}
             negativePrompt={negativePrompt}
+            seed={seed}
             onPositivePromptChange={setPositivePrompt}
             onNegativePromptChange={setNegativePrompt}
+            onSeedChange={setSeed}
           />
 
           <TaskIdDisplay taskId={taskId} />

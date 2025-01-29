@@ -7,6 +7,7 @@ interface GalleryImage {
   image_url: string;
   positive_prompt: string;
   negative_prompt: string;
+  seed?: string;
   created_at: string;
 }
 
@@ -120,6 +121,11 @@ export function GalleryPage({ session }: GalleryPageProps) {
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Negative:</span> {image.negative_prompt || 'None'}
                 </div>
+                {image.seed && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Seed:</span> {image.seed}
+                  </div>
+                )}
                 <div className="mt-2 text-xs text-gray-400">
                   {new Date(image.created_at).toLocaleDateString()}
                 </div>

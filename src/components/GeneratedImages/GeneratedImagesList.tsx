@@ -5,6 +5,7 @@ interface Generation {
   images: string[];
   positivePrompt: string;
   negativePrompt: string;
+  seed?: string;
   timestamp: number;
 }
 
@@ -50,6 +51,11 @@ export function GeneratedImagesList({ generations, currentImages, onDelete }: Ge
             <p className="text-sm text-gray-600">
               <span className="font-medium">Negative Prompt:</span> {generation.negativePrompt || 'None'}
             </p>
+            {generation.seed && (
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Seed:</span> {generation.seed}
+              </p>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
