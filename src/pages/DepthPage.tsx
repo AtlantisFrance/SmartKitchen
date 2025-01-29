@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ImageUploader } from '../components/ImageInput/ImageUploader';
@@ -11,6 +11,13 @@ import { StatusMessages } from '../components/StatusMessages/StatusMessages';
 import { GenerateButton } from '../components/GenerateButton/GenerateButton';
 import { ProgressIndicator } from '../components/Progress/ProgressIndicator';
 import { TaskIdDisplay } from '../components/TaskId/TaskIdDisplay';
+import { ProjectSelector } from '../components/Projects/ProjectSelector';
+
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface ApiResponse {
   data?: {
@@ -46,13 +53,14 @@ interface Generation {
   positivePrompt: string;
   negativePrompt: string;
   timestamp: number;
+  projectName?: string;
 }
 
 interface DepthPageProps {
   session: any;
 }
 
-function DepthPage({ session }: DepthPageProps) {
+export default function DepthPage({ session }: DepthPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
@@ -69,8 +77,34 @@ function DepthPage({ session }: DepthPageProps) {
   const [inputMethod, setInputMethod] = useState<'file' | 'url'>('file');
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [isImageValid, setIsImageValid] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [manualTaskId, setManualTaskId] = useState('');
+  const [isTaskIdInputOpen, setIsTaskIdInputOpen] = useState(false);
 
   const token = '49be0c4f-0a33-4a4a-a602-4f6f46a37a96';
+
+  useEffect(() => {
+    if (session) {
+      fetchProjects();
+    }
+  }, [session]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setError('Failed to load projects');
+    }
+  };
 
   const resetForm = () => {
     setImage(null);
@@ -117,92 +151,209 @@ function DepthPage({ session }: DepthPageProps) {
   const queryTaskStatus = async (taskId: string): Promise<StatusResponse | null> => {
     try {
       console.log(`[Status Check] Querying status for task: ${taskId}`);
+      const startTime = Date.now();
       
       const response = await fetch("https://api.comfyonline.app/api/query_run_workflow_status", {
         method: "POST",
         headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ task_id: taskId })
       });
       
+      const responseTime = Date.now() - startTime;
+      console.log(`[Status Check] Response time: ${responseTime}ms`);
+
       if (!response.ok) {
         console.error(`[Status Check] HTTP error: ${response.status}`);
-        throw new Error('Status check failed');
+        console.error('[Status Check] Response headers:', Object.fromEntries([...response.headers]));
+        return null;
       }
 
-      const data: StatusResponse = await response.json();
-      console.log('[Status Check] Response:', JSON.stringify(data, null, 2));
-      return data;
+      const responseText = await response.text();
+      console.log('[Status Check] Raw response:', responseText);
+      
+      if (responseText.trim() === '') {
+        console.log('[Status Check] Empty response received');
+        return null;
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+        
+        // Check if we have a valid response structure
+        if (!data || (typeof data !== 'object')) {
+          console.error('[Status Check] Invalid response structure:', data);
+          return null;
+        }
+
+        // If the response contains state information directly
+        if (data.state) {
+          return {
+            success: true,
+            data: {
+              state: data.state,
+              output: data.output || {}
+            }
+          };
+        }
+
+        // If the response is wrapped in a data property
+        if (data.data) {
+          return {
+            success: true,
+            data: data.data
+          };
+        }
+
+        console.error('[Status Check] Unexpected response structure:', data);
+        return null;
+      } catch (parseError) {
+        console.error('[Status Check] Failed to parse JSON:', parseError);
+        return null;
+      }
     } catch (error) {
-      console.error('[Status Check] Error:', error);
+      console.error('[Status Check] Error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error
+      });
       return null;
     }
   };
 
-  const pollStatus = async (taskId: string) => {
-    let attempts = 0;
-    const maxAttempts = 120; // Increase max attempts to 4 minutes total
-    setTaskId(taskId);
-    console.log(`[Polling] Starting polling for task: ${taskId}`);
+  const handleManualQuery = async () => {
+    const queryTaskId = manualTaskId || taskId;
+    if (!queryTaskId) return;
     
-    while (attempts < maxAttempts) {
-      const progressPercent = Math.min(95, (attempts / maxAttempts) * 100);
-      setProgress(`Processing image... ${progressPercent.toFixed(0)}%`);
-      console.log(`[Polling] Attempt ${attempts + 1}/${maxAttempts}`);
-      
-      const status = await queryTaskStatus(taskId);
-      console.log(`[Polling] Status response:`, JSON.stringify(status, null, 2));
+    setIsQuerying(true);
+    setError(null);
+    
+    try {
+      const status = await queryTaskStatus(queryTaskId);
       
       if (!status) {
-        console.error('[Polling] Failed to get status');
-        setError('Failed to check generation status');
-        setGenerating(false);
-        setProgress('');
-        setTaskId(null);
-        break;
+        throw new Error('Failed to get status');
       }
 
       if (status.success && status.data?.state === 'COMPLETED') {
-        console.log('[Polling] Generation completed');
         if (status.data.output?.output_url_list) {
-          setProgress('Generation completed successfully! 100%');
           const urls = status.data.output.output_url_list;
-          console.log('[Polling] Output URLs:', urls);
-          
-          const newGeneration: Generation = {
-            id: taskId,
-            images: urls,
-            positivePrompt,
-            negativePrompt,
-            timestamp: Date.now()
-          };
-          
-          setSessionGenerations(prev => [...prev, newGeneration]);
           setGeneratedImages(urls);
-          setSuccess('Image generated successfully!');
+          setSuccess('Generation completed!');
           
+          // Update database and UI
           if (session?.user) {
             try {
-              const { error: insertError } = await supabase
+              await supabase
                 .from('result_images')
                 .insert({
                   user_id: session.user.id,
                   image_url: urls[0],
                   seed: seed || null,
-                  task_id: taskId,
+                  project_id: selectedProject?.id || null,
+                  task_id: queryTaskId,
                   positive_prompt: positivePrompt,
                   negative_prompt: negativePrompt
-                });
-              
-              if (insertError) throw insertError;
+                }).throwOnError();
+
+              setSessionGenerations(prev => prev.map(gen => 
+                gen.id === queryTaskId 
+                  ? { ...gen, images: urls }
+                  : gen
+              ));
             } catch (err) {
-              console.error('Failed to save result to database:', err);
+              console.error('Failed to update result:', err);
             }
           }
         } else {
-          console.warn('[Polling] No URLs in completed status');
+          throw new Error('No output images received');
+        }
+      } else if (status.data?.state === 'PROCESSING') {
+        setSuccess('Generation is still processing');
+      } else if (status.data?.state === 'ERROR' || !status.success) {
+        throw new Error(status.errorMsg || 'Generation failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to query status');
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  const pollStatus = async (taskId: string) => {
+    let attempts = 0;
+    const maxAttempts = 120;
+    const baseInterval = 2000; // Back to 2 seconds
+    let pollInterval = baseInterval;
+    
+    setTaskId(taskId);
+    
+    while (attempts < maxAttempts) {
+      console.log(`[Polling] Attempt ${attempts + 1}/${maxAttempts} at ${new Date().toISOString()}`);
+      const attemptStart = Date.now();
+      
+      const status = await queryTaskStatus(taskId);
+      
+      const attemptDuration = Date.now() - attemptStart;
+      console.log(`[Polling] Attempt ${attempts + 1} took ${attemptDuration}ms`);
+      
+      if (!status) {
+        console.error('[Polling] Failed to get status');
+        setError('Failed to check generation status');
+        setGenerating(false);
+        setProgress('Error: Failed to check status - possible network issue');
+        setTaskId(null);
+        break;
+      }
+
+      const progressPercent = Math.min(95, (attempts / maxAttempts) * 100);
+      
+      // Update progress message with queue information
+      if (attempts === 0) {
+        setProgress('Starting generation... 0%');
+      } else if (attempts < 5) {
+        setProgress(`Initializing and checking queue position... ${progressPercent.toFixed(0)}%`);
+      } else if (attempts < 10) {
+        setProgress(`Waiting in queue... ${progressPercent.toFixed(0)}%`);
+      } else {
+        setProgress(`Processing image... ${progressPercent.toFixed(0)}%`);
+      }
+
+      if (status.success && status.data?.state === 'COMPLETED') {
+        if (status.data.output?.output_url_list) {
+          setProgress('Generation completed successfully! 100%');
+          const urls = status.data.output.output_url_list;
+          setGeneratedImages(urls);
+          setSuccess('Image generated successfully!');
+          
+          if (session?.user) {
+            try {
+              await supabase
+                .from('result_images')
+                .insert({
+                  user_id: session.user.id,
+                  image_url: urls[0],
+                  seed: seed || null,
+                  project_id: selectedProject?.id || null,
+                  task_id: taskId,
+                  positive_prompt: positivePrompt,
+                  negative_prompt: negativePrompt
+                }).throwOnError();
+
+              // Update the generation in the UI
+              setSessionGenerations(prev => prev.map(gen => 
+                gen.id === taskId 
+                  ? { ...gen, images: urls }
+                  : gen
+              ));
+            } catch (err) {
+              console.error('Failed to update result in database:', err);
+            }
+          }
+        } else {
           setError('No output images received');
         }
         setGenerating(false);
@@ -210,28 +361,32 @@ function DepthPage({ session }: DepthPageProps) {
         setTaskId(null);
         break;
       } else if (!status.success || status.errorMsg || status.data?.state === 'ERROR') {
-        console.error('[Polling] Generation failed:', status.errorMsg);
-        setError(status.errorMsg || 'Generation failed');
+        setError(status.errorMsg || 'Image generation failed');
         setGenerating(false);
         setProgress('');
         setTaskId(null);
         break;
       } else if (status.data?.state === 'PROCESSING') {
-        console.log('[Polling] Still processing...');
-        setProgress(`Processing image... Attempt ${attempts + 1}/${maxAttempts}`);
+        // Adjust polling interval based on attempt count
+        if (attempts < 5) {
+          pollInterval = baseInterval; // Check frequently at first
+        } else if (attempts < 20) {
+          pollInterval = baseInterval * 2; // Slow down more
+        } else {
+          pollInterval = baseInterval * 3; // Slow down even more for long-running tasks
+        }
       }
       
       attempts++;
       if (attempts === maxAttempts) {
-        console.error('[Polling] Reached maximum attempts');
-        setError('Generation timed out');
+        setError('Generation timed out. The process took longer than expected - this might indicate high queue load.');
         setGenerating(false);
         setProgress('');
         setTaskId(null);
         break;
       }
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
   };
 
@@ -377,6 +532,12 @@ function DepthPage({ session }: DepthPageProps) {
   };
 
   const generateImage = async () => {
+    console.log('[Generation] Starting new generation request');
+    console.log('[Generation] Image URL:', image);
+    console.log('[Generation] Input method:', inputMethod);
+    console.log('[Generation] Image valid:', isImageValid);
+    console.log('[Generation] Session:', session ? 'logged in' : 'not logged in');
+    
     // Reset any existing state
     setGenerating(false);
     setProgress('');
@@ -408,30 +569,36 @@ function DepthPage({ session }: DepthPageProps) {
       const body = {
         input: {
           CLIPTextEncode_text_7: negativePrompt,
-          LoadImage_image_17: image,
+          LoadImage_image_17: image || '',
           CLIPTextEncode_text_23: positivePrompt,
           easy_int_value_60: seed || Math.floor(Math.random() * 1000000).toString()
         },
         workflow_id: "a254baa6-52eb-4a06-9a0f-ad9a9619b842",
         webhook: ""
       };
+      console.log('[Generation] Request payload:', JSON.stringify(body, null, 2));
 
       console.log('[Generation] Sending request');
       const response = await fetch("https://api.comfyonline.app/api/run_workflow", {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify(body)
       });
+      
+      console.log('[Generation] Response status:', response.status);
+      const responseText = await response.text();
+      console.log('[Generation] Raw response:', responseText);
 
       if (!response.ok) {
         console.error('[Generation] HTTP error:', response.status);
         throw new Error('Failed to start generation');
       }
 
-      const data: GenerationResponse = await response.json();
+      const data: GenerationResponse = JSON.parse(responseText);
       console.log('[Generation] Response:', JSON.stringify(data, null, 2));
       
       if (!data.success) {
@@ -462,17 +629,64 @@ function DepthPage({ session }: DepthPageProps) {
         <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">Kitchen Image Generation</h2>
-            <button
-              onClick={resetForm}
-              className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
-            >
-              <PlusCircle className="w-5 h-5 mr-2" />
-              New Generation
-            </button>
+            <div className="flex items-center space-x-4">
+              {isTaskIdInputOpen ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={manualTaskId}
+                    onChange={(e) => setManualTaskId(e.target.value)}
+                    placeholder="Enter Task ID"
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 w-64"
+                  />
+                  <button
+                    onClick={() => {
+                      handleManualQuery();
+                      setIsTaskIdInputOpen(false);
+                      setManualTaskId('');
+                    }}
+                    disabled={!manualTaskId || isQuerying}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                  >
+                    Query
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsTaskIdInputOpen(false);
+                      setManualTaskId('');
+                    }}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsTaskIdInputOpen(true)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
+                >
+                  Query Task ID
+                </button>
+              )}
+              <button
+                onClick={resetForm}
+                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
+              >
+                <PlusCircle className="w-5 h-5 mr-2" />
+                New Generation
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="px-6 py-6 space-y-6">
+          <ProjectSelector
+            selectedProject={selectedProject}
+            onProjectSelect={setSelectedProject}
+            projects={projects}
+            onProjectsChange={fetchProjects}
+          />
+
           <InputMethodToggle 
             inputMethod={inputMethod}
             onMethodChange={setInputMethod}
@@ -506,7 +720,11 @@ function DepthPage({ session }: DepthPageProps) {
             onSeedChange={setSeed}
           />
 
-          <TaskIdDisplay taskId={taskId} />
+          <TaskIdDisplay 
+            taskId={taskId} 
+            onQuery={handleManualQuery}
+            isQuerying={isQuerying}
+          />
 
           <GenerateButton
             onClick={generateImage}
@@ -531,5 +749,3 @@ function DepthPage({ session }: DepthPageProps) {
     </div>
   );
 }
-
-export { DepthPage };

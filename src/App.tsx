@@ -5,7 +5,7 @@ import { AuthForm } from './components/Auth/AuthForm';
 import { UserMenu } from './components/Auth/UserMenu';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { BalanceDisplay } from './components/Balance/BalanceDisplay';
-import { DepthPage } from './pages/DepthPage';
+import DepthPage from './pages/DepthPage';
 import { GalleryPage } from './pages/GalleryPage';
 
 function App() {
@@ -31,6 +31,10 @@ function App() {
         }
       });
 
+      if (!response.ok) {
+        throw new Error(`Failed to fetch balance: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (!data.success) {
@@ -44,6 +48,7 @@ function App() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setBalance(null);
     } finally {
       setLoading(false);
     }

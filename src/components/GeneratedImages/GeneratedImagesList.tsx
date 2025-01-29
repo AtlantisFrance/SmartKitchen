@@ -7,6 +7,7 @@ interface Generation {
   negativePrompt: string;
   seed?: string;
   timestamp: number;
+  projectName?: string;
 }
 
 interface GeneratedImagesListProps {
@@ -30,6 +31,11 @@ export function GeneratedImagesList({ generations, currentImages, onDelete }: Ge
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-4">
               <h3 className="text-lg font-medium text-gray-900">Generation #{generations.length - index}</h3>
+              {generation.projectName && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {generation.projectName}
+                </span>
+              )}
               <div className="flex items-center text-sm text-gray-500">
                 <Clock className="w-4 h-4 mr-1" />
                 {formatTimestamp(generation.timestamp)}
