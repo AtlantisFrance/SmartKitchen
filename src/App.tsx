@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2 } from 'lucide-react';
+import { Building2, Menu } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { AuthForm } from './components/Auth/AuthForm';
 import { UserMenu } from './components/Auth/UserMenu';
@@ -14,6 +14,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState('designer');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const token = '49be0c4f-0a33-4a4a-a602-4f6f46a37a96';
 
@@ -78,8 +79,14 @@ function App() {
       <header className="bg-white border-b border-gray-200 fixed w-full top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-0">
-            <div className="flex justify-between items-center h-12 sm:h-16">
-              <div className="flex items-center space-x-2 ml-12 lg:ml-0">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="lg:hidden p-2 text-gray-600 hover:text-gray-900 focus:outline-none"
+                >
+                  <Menu className="h-6 w-6" />
+                </button>
                 <Building2 className="w-8 h-8 text-blue-600" />
                 <div>
                   <h1 className="text-xl font-semibold text-gray-900">Sm@rt Kitchen</h1>
@@ -101,8 +108,13 @@ function App() {
         </div>
       </header>
 
-      {/* Sidebar */}
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+      {/* Navigation */}
+      <Sidebar 
+        currentPage={currentPage} 
+        onNavigate={setCurrentPage}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
 
       {/* Main Content */}
       <main className="pt-28 sm:pt-20 pb-12 px-4 sm:px-6 lg:pl-72 lg:pr-8">

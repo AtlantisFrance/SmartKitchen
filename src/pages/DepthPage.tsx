@@ -52,7 +52,7 @@ interface DepthPageProps {
   session: any;
 }
 
-export function DepthPage({ session }: DepthPageProps) {
+function DepthPage({ session }: DepthPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
@@ -141,12 +141,13 @@ export function DepthPage({ session }: DepthPageProps) {
 
   const pollStatus = async (taskId: string) => {
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 120; // Increase max attempts to 4 minutes total
     setTaskId(taskId);
     console.log(`[Polling] Starting polling for task: ${taskId}`);
     
     while (attempts < maxAttempts) {
-      setProgress(`Checking status... Attempt ${attempts + 1}/${maxAttempts}`);
+      const progressPercent = Math.min(95, (attempts / maxAttempts) * 100);
+      setProgress(`Processing image... ${progressPercent.toFixed(0)}%`);
       console.log(`[Polling] Attempt ${attempts + 1}/${maxAttempts}`);
       
       const status = await queryTaskStatus(taskId);
@@ -164,6 +165,7 @@ export function DepthPage({ session }: DepthPageProps) {
       if (status.success && status.data?.state === 'COMPLETED') {
         console.log('[Polling] Generation completed');
         if (status.data.output?.output_url_list) {
+          setProgress('Generation completed successfully! 100%');
           const urls = status.data.output.output_url_list;
           console.log('[Polling] Output URLs:', urls);
           
@@ -213,7 +215,7 @@ export function DepthPage({ session }: DepthPageProps) {
         break;
       } else if (status.data?.state === 'PROCESSING') {
         console.log('[Polling] Still processing...');
-        setProgress(`Processing image... (Attempt ${attempts + 1}/${maxAttempts})`);
+        setProgress(`Processing image... Attempt ${attempts + 1}/${maxAttempts}`);
       }
       
       attempts++;
@@ -233,44 +235,78 @@ export function DepthPage({ session }: DepthPageProps) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && session?.user) {
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      
       try {
         setError(null);
         setSuccess(null);
+        setImage(null);
+        setIsImageValid(false);
+        setGenerating(false);
+        setProgress('');
         
-        const previewUrl = URL.createObjectURL(file);
-        setImage(previewUrl);
+        // Validate file size
+        if (file.size > maxSize) {
+          throw new Error('File size must be less than 10MB');
+        }
         
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        // Validate file type
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error('File must be JPEG, PNG, or GIF');
+        }
+        
+        // Generate a unique filename using timestamp and random string
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${timestamp}-${randomString}.${fileExt}`;
         const filePath = `${session.user.id}/${fileName}`;
-
+        
+        setProgress('Uploading image...');
+        
+        // Upload to Supabase storage
         const { error: uploadError } = await supabase.storage
           .from('depthmaps')
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw uploadError;
+        }
 
+        // Get the public URL
         const { data: { publicUrl } } = supabase.storage
           .from('depthmaps')
           .getPublicUrl(filePath);
+        
+        // Validate the public URL
+        const isValid = await validateImageUrl(publicUrl);
+        if (!isValid) {
+          throw new Error('Failed to validate uploaded image');
+        }
 
+        // Save to database
         const { error: insertError } = await supabase
           .from('depthmaps')
           .insert({
             user_id: session.user.id,
-            image_path: filePath
+            image_path: filePath,
+            created_at: new Date().toISOString()
           });
 
         if (insertError) throw insertError;
 
-        setImage(publicUrl);
+        // Update UI with public URL
+        setImage(publicUrl); // Use the Supabase public URL directly
+        setIsImageValid(true);
         setSuccess('Image uploaded successfully');
-        
-        URL.revokeObjectURL(previewUrl);
+        setProgress('');
       } catch (err) {
         console.error('[Image Upload] Error:', err);
-        setError('Failed to upload image');
+        setError(err instanceof Error ? err.message : 'Failed to upload image');
         setImage(null);
+        setIsImageValid(false);
+        setProgress('');
       }
     }
   };
@@ -278,8 +314,24 @@ export function DepthPage({ session }: DepthPageProps) {
   const validateImageUrl = (url: string) => {
     return new Promise((resolve) => {
       const img = new Image();
+      
+      // Don't try to validate blob URLs
+      if (url.startsWith('blob:')) {
+        resolve(false);
+        return;
+      }
+      
+      const timeoutId = setTimeout(() => {
+        img.src = '';
+        resolve(false);
+      }, 10000); // 10 second timeout
+      
       img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        resolve(false);
+      };
+      img.crossOrigin = 'anonymous';
       img.src = url;
     });
   };
@@ -322,12 +374,18 @@ export function DepthPage({ session }: DepthPageProps) {
   };
 
   const generateImage = async () => {
+    // Reset any existing state
+    setGenerating(false);
+    setProgress('');
+    setError(null);
+    setSuccess(null);
+    
     if (!session) {
       setError('Please sign in to generate images');
       return;
     }
 
-    if (!image) {
+    if (!image || image.startsWith('blob:')) {
       setError('Please provide an image first');
       return;
     }
@@ -340,7 +398,7 @@ export function DepthPage({ session }: DepthPageProps) {
     setGenerating(true);
     setError(null);
     setSuccess(null);
-    setProgress('Starting generation...');
+    setProgress('Initializing generation... 0%');
     
     try {
       console.log('[Generation] Starting new generation');
@@ -467,3 +525,5 @@ export function DepthPage({ session }: DepthPageProps) {
     </div>
   );
 }
+
+export { DepthPage };
