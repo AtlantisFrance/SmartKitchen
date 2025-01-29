@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trash2, ExternalLink, Folder, FolderPlus } from 'lucide-react';
+import { Trash2, ExternalLink, FolderIcon as Folder, FolderPlus, Loader2 } from 'lucide-react';
+import { ProjectAssignment } from '../components/Projects/ProjectAssignment';
 
 interface GalleryImage {
   id: string;
@@ -33,6 +34,7 @@ export function GalleryPage({ session }: GalleryPageProps) {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [assigningProject, setAssigningProject] = useState<string | null>(null);
 
   useEffect(() => {
@@ -174,38 +176,46 @@ export function GalleryPage({ session }: GalleryPageProps) {
   const handleAssignProject = async (imageId: string, projectId: string) => {
     try {
       setError(null);
+      setSuccess(null);
+      setAssigningProject(null);
       
-      // First update the project_id
-      const { error: updateError } = await supabase
+      const { data: updatedImage, error: updateError } = await supabase
         .from('result_images')
         .update({ project_id: projectId })
         .eq('id', imageId)
-        .eq('user_id', session.user.id);
+        .eq('user_id', session.user.id)
+        .select(`
+          *,
+          project:projects(name)
+        `)
+        .single();
 
       if (updateError) throw updateError;
 
-      // Get the project name
-      const project = projects.find(p => p.id === projectId);
-      if (!project) throw new Error('Project not found');
-
       // Update local state
-      setImages(prev => prev.map(img => 
-        img.id === imageId 
-          ? { ...img, project: { name: project.name }, project_id: projectId }
-          : img
-      ));
-
-      setAssigningProject(null);
+      if (updatedImage) {
+        // Only update the image if it's in the current view
+        setImages(prev => prev.map(img => 
+          img.id === imageId 
+            ? { ...updatedImage, project: updatedImage.project }
+            : img
+        ));
+        setSuccess('Project assigned successfully');
+      } else {
+        throw new Error('Failed to update image');
+      }
     } catch (err) {
       console.error('Error assigning project:', err);
       setError('Failed to assign project');
+    } finally {
+      setAssigningProject(null);
     }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -216,8 +226,26 @@ export function GalleryPage({ session }: GalleryPageProps) {
       
       {/* Project Creation Form */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-gray-600">Select a project or create a new one</p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            {selectedProject && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Current project:</span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  {selectedProject.name}
+                </span>
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                  title="Clear selection"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setIsCreatingProject(!isCreatingProject)}
             className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -227,46 +255,6 @@ export function GalleryPage({ session }: GalleryPageProps) {
           </button>
         </div>
 
-        {isCreatingProject && (
-          <div className="bg-white p-4 rounded-lg shadow-sm space-y-4 mb-6">
-            <div>
-              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700">
-                Project Name
-              </label>
-              <input
-                type="text"
-                id="projectName"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter project name"
-              />
-            </div>
-            <div>
-              <label htmlFor="projectDescription" className="block text-sm font-medium text-gray-700">
-                Description (optional)
-              </label>
-              <textarea
-                id="projectDescription"
-                value={newProjectDescription}
-                onChange={(e) => setNewProjectDescription(e.target.value)}
-                rows={2}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter project description"
-              />
-            </div>
-            <button
-              onClick={handleCreateProject}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Create Project
-            </button>
-          </div>
-        )}
-      </div>
-      
-      {/* Project Selection */}
-      <div className="mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {projects.map((project) => (
             <div key={project.id} className="relative group flex flex-col">
@@ -274,8 +262,8 @@ export function GalleryPage({ session }: GalleryPageProps) {
                 onClick={() => setSelectedProject(project)}
                 className={`w-full flex items-center px-4 py-3 rounded-lg border ${
                   selectedProject?.id === project.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-500'
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                 } flex-col`}
               >
                 <div className="flex items-center w-full">
@@ -300,21 +288,28 @@ export function GalleryPage({ session }: GalleryPageProps) {
         </div>
         {selectedProject?.description && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Project Description</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-1">About {selectedProject.name}</h3>
             <p className="text-sm text-gray-600">{selectedProject.description}</p>
           </div>
         )}
       </div>
       
+      {/* Status Messages */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
           {error}
         </div>
       )}
       
+      {success && (
+        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg">
+          {success}
+        </div>
+      )}
+      
       {!selectedProject && !error && (
         <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-blue-700">Showing all images. Select a project to filter.</p>
+          <p className="text-blue-700">Showing all images. Click on a project above to filter by project.</p>
         </div>
       )}
 
@@ -358,37 +353,12 @@ export function GalleryPage({ session }: GalleryPageProps) {
                   </p>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  {image.project?.name ? (
-                    <div className="flex items-center">
-                      <Folder className="w-4 h-4 mr-1 text-blue-600" />
-                      <span className="text-sm text-blue-600">{image.project.name}</span>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <button
-                        onClick={() => setAssigningProject(assigningProject === image.id ? null : image.id)}
-                        className="text-sm text-gray-500 hover:text-blue-600 flex items-center"
-                      >
-                        <FolderPlus className="w-4 h-4 mr-1" />
-                        Assign to Project
-                      </button>
-                      
-                      {assigningProject === image.id && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg">
-                          {projects.map(project => (
-                            <button
-                              key={project.id}
-                              onClick={() => handleAssignProject(image.id, project.id)}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                            >
-                              <Folder className="w-4 h-4 mr-2" />
-                              {project.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <ProjectAssignment
+                    imageId={image.id}
+                    currentProject={image.project}
+                    projects={projects}
+                    onAssignSuccess={fetchImages}
+                  />
                 </div>
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Negative:</span> {image.negative_prompt || 'None'}

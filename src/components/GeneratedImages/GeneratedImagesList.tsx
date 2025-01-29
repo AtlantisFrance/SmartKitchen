@@ -1,4 +1,5 @@
-import { Clock, Trash2 } from 'lucide-react';
+import { Clock, Trash2, ExternalLink } from 'lucide-react';
+import { ProjectAssignment } from '../Projects/ProjectAssignment';
 
 interface Generation {
   id: string;
@@ -13,10 +14,18 @@ interface Generation {
 interface GeneratedImagesListProps {
   generations: Generation[];
   currentImages: string[];
+  projects: Project[];
   onDelete: (generationId: string) => void;
+  onProjectAssign: () => void;
 }
 
-export function GeneratedImagesList({ generations, currentImages, onDelete }: GeneratedImagesListProps) {
+export function GeneratedImagesList({ 
+  generations, 
+  currentImages, 
+  projects,
+  onDelete,
+  onProjectAssign 
+}: GeneratedImagesListProps) {
   if (generations.length === 0 && currentImages.length === 0) return null;
 
   const formatTimestamp = (timestamp: number) => {
@@ -67,22 +76,32 @@ export function GeneratedImagesList({ generations, currentImages, onDelete }: Ge
           <div className="grid grid-cols-2 gap-4">
             {generation.images.map((url, imgIndex) => (
               <div key={imgIndex} className="relative group">
-                <img 
-                  src={url} 
-                  alt={`Generated ${imgIndex + 1}`} 
-                  className="rounded-lg shadow-md w-full h-auto"
-                  loading="lazy"
-                />
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
-                >
-                  <span className="bg-white text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                    View Full Size
-                  </span>
-                </a>
+                <div className="relative">
+                  <img 
+                    src={url} 
+                    alt={`Generated ${imgIndex + 1}`} 
+                    className="rounded-lg shadow-md w-full h-auto"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 transition-colors"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <ProjectAssignment
+                    imageId={generation.id}
+                    currentProject={generation.project}
+                    projects={projects}
+                    onAssignSuccess={onProjectAssign}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -95,22 +114,24 @@ export function GeneratedImagesList({ generations, currentImages, onDelete }: Ge
           <div className="grid grid-cols-2 gap-4">
             {currentImages.map((url, index) => (
               <div key={index} className="relative group">
-                <img 
-                  src={url} 
-                  alt={`Current ${index + 1}`} 
-                  className="rounded-lg shadow-md w-full h-auto"
-                  loading="lazy"
-                />
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
-                >
-                  <span className="bg-white text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                    View Full Size
-                  </span>
-                </a>
+                <div className="relative">
+                  <img 
+                    src={url} 
+                    alt={`Current ${index + 1}`} 
+                    className="rounded-lg shadow-md w-full h-auto"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 transition-colors"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

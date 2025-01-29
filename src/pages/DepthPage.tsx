@@ -721,9 +721,7 @@ export default function DepthPage({ session }: DepthPageProps) {
           />
 
           <TaskIdDisplay 
-            taskId={taskId} 
-            onQuery={handleManualQuery}
-            isQuerying={isQuerying}
+            taskId={taskId}
           />
 
           <GenerateButton
