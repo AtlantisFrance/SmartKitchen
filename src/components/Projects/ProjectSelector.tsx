@@ -63,7 +63,7 @@ export function ProjectSelector({ selectedProject, onProjectSelect, projects, on
   return (
     <div className="mb-6 relative" ref={dropdownRef}>
       <div className="flex justify-between items-center mb-4">
-        <label className="block text-sm font-medium text-gray-700">Project</label>
+        <label className="block text-sm font-medium text-gray-700">Choissez votre Projet</label>
         <button
           onClick={() => setIsCreating(!isCreating)}
           className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
@@ -105,7 +105,7 @@ export function ProjectSelector({ selectedProject, onProjectSelect, projects, on
           >
             <div className="flex items-center">
               <Folder className="w-4 h-4 mr-2" />
-              <span>{selectedProject ? selectedProject.name : 'Select a project'}</span>
+              <span>{selectedProject ? selectedProject.name : 'Vos projets'}</span>
             </div>
             <svg className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
