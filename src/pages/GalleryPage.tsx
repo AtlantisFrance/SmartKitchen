@@ -368,8 +368,16 @@ export function GalleryPage({ session }: GalleryPageProps) {
                     <span className="font-medium">Seed:</span> {image.seed}
                   </div>
                 )}
-                <div className="mt-2 text-xs text-gray-400">
-                  {new Date(image.created_at).toLocaleDateString()}
+                <div className="mt-2 text-xs text-gray-400 flex items-center justify-between">
+                  <span>{new Date(image.created_at).toLocaleDateString('fr-FR', {
+                    timeZone: 'Europe/Paris'
+                  })}</span>
+                  <span>{new Date(image.created_at).toLocaleTimeString('fr-FR', {
+                    timeZone: 'Europe/Paris',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  })}</span>
                 </div>
               </div>
             </div>
