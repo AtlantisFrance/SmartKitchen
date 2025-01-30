@@ -62,11 +62,18 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Column - Branding */}
       <div className="flex flex-col w-full lg:w-1/2 bg-blue-600 relative min-h-[120px] lg:min-h-screen">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1600489000022-c2086d79f9d4?auto=format&fit=crop&q=80"
+            alt="Modern kitchen design"
+            className="w-full h-full object-cover"
+          />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/90 to-blue-800/90" />
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-4 lg:p-12 text-white h-full">
           {/* Mobile View */}
-          <div className="lg:hidden flex items-center w-full max-w-[280px] mx-auto">
-            <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm ring-1 ring-white/20 mr-3 flex-shrink-0">
+          <div className="lg:hidden flex items-center w-full max-w-[280px] mx-auto mb-4">
+            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm ring-1 ring-white/30 mr-3 flex-shrink-0">
               <Building2 className="w-[clamp(2rem,6vw,2.5rem)] h-[clamp(2rem,6vw,2.5rem)] text-white" />
             </div>
             <div className="min-w-0 flex-1">
@@ -77,21 +84,21 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
           {/* Desktop View */}
           <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-center lg:flex-1">
-            <div className="p-6 bg-white/10 rounded-3xl backdrop-blur-sm mb-6 ring-1 ring-white/20">
+            <div className="p-6 bg-white/20 rounded-3xl backdrop-blur-sm mb-6 ring-1 ring-white/30">
               <Building2 className="w-20 h-20 text-white" />
             </div>
             <h1 className="text-4xl font-bold mb-3">Sm@rt Kitchen</h1>
             <p className="text-xl text-blue-100 text-center max-w-md">
               AI-Powered Architectural Kitchen Design
             </p>
-            <div className="mt-12 space-y-6 text-center">
-              <div className="p-6 bg-white/5 rounded-2xl backdrop-blur-sm">
+            <div className="mt-12 space-y-6 text-center max-w-lg">
+              <div className="p-6 bg-white/10 rounded-2xl backdrop-blur-sm ring-1 ring-white/20">
                 <h3 className="text-xl font-semibold mb-3">Transformez votre cuisine</h3>
                 <p className="text-blue-100">
                   Utilisez l'intelligence artificielle pour créer des designs de cuisine uniques et innovants
                 </p>
               </div>
-              <div className="p-6 bg-white/5 rounded-2xl backdrop-blur-sm">
+              <div className="p-6 bg-white/10 rounded-2xl backdrop-blur-sm ring-1 ring-white/20">
                 <h3 className="text-xl font-semibold mb-3">Design professionnel</h3>
                 <p className="text-blue-100">
                   Créez des designs de cuisine professionnels en quelques clics
@@ -103,8 +110,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       </div>
 
       {/* Right Column - Auth Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-gray-50">
-        <div className="w-full max-w-md">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-gray-50 relative">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&q=80"
+            alt="Elegant kitchen interior"
+            className="w-full h-full object-cover opacity-40"
+          />
+          <div className="absolute inset-0 bg-white/70" />
+        </div>
+        <div className="w-full max-w-md relative z-10">
           <h2 className="text-[clamp(1.5rem,5vw,2rem)] font-extrabold text-gray-900 mb-3">
             {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}
           </h2>
@@ -233,30 +248,26 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               </button>
             </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <div className="text-center mb-4">
+                <p className="text-base font-medium text-gray-700">
+                  {isSignUp ? 'Déjà inscrit ?' : 'Pas encore de compte ?'}
+                </p>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">ou</span>
-              </div>
-            </div>
-
-            <div className="text-sm text-center space-y-4">
               <button
                 type="button"
                 onClick={() => {
                   setError(null);
                   setIsSignUp(!isSignUp);
                 }}
-                className="w-full inline-flex items-center justify-center py-2.5 px-4 rounded-lg border border-gray-300 hover:border-gray-400 bg-white text-gray-600 hover:bg-gray-50 transition-all duration-200"
+                className="w-full inline-flex items-center justify-center py-3 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 hover:text-gray-900 font-medium transition-all duration-200 shadow-sm"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {isSignUp ? 'Retour à la connexion' : 'Créer un nouveau compte'}
+                {isSignUp ? 'Se connecter' : 'Créer un compte'}
+                <ChevronRight className="w-5 h-5 ml-2" />
               </button>
             </div>
           </form>
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-sm text-gray-500">
               En continuant, vous acceptez nos{' '}
               <a href="#" className="text-blue-600 hover:text-blue-500">Conditions d'utilisation</a>

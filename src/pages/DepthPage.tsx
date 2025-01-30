@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ImageUploader } from '../components/ImageInput/ImageUploader';
-import { ImageUrlInput } from '../components/ImageInput/ImageUrlInput';
-import { InputMethodToggle } from '../components/ImageInput/InputMethodToggle';
 import { ImagePreview } from '../components/ImagePreview/ImagePreview';
 import { PromptInputs } from '../components/Prompts/PromptInputs';
 import { GeneratedImagesList } from '../components/GeneratedImages/GeneratedImagesList';
@@ -12,6 +10,7 @@ import { GenerateButton } from '../components/GenerateButton/GenerateButton';
 import { ProgressIndicator } from '../components/Progress/ProgressIndicator';
 import { TaskIdDisplay } from '../components/TaskId/TaskIdDisplay';
 import { ProjectSelector } from '../components/Projects/ProjectSelector';
+import { TaskHistory } from '../components/TaskId/TaskHistory';
 
 interface Project {
   id: string;
@@ -65,7 +64,6 @@ export default function DepthPage({ session }: DepthPageProps) {
   const [success, setSuccess] = useState<string | null>(null);
   
   const [image, setImage] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState('');
   const [positivePrompt, setPositivePrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [seed, setSeed] = useState('');
@@ -74,8 +72,6 @@ export default function DepthPage({ session }: DepthPageProps) {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<string>('');
   const [taskId, setTaskId] = useState<string | null>(null);
-  const [inputMethod, setInputMethod] = useState<'file' | 'url'>('file');
-  const [isImageLoading, setIsImageLoading] = useState(false);
   const [isImageValid, setIsImageValid] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -108,7 +104,6 @@ export default function DepthPage({ session }: DepthPageProps) {
 
   const resetForm = () => {
     setImage(null);
-    setImageUrl('');
     setPositivePrompt('');
     setNegativePrompt('');
     setSeed('');
@@ -151,24 +146,18 @@ export default function DepthPage({ session }: DepthPageProps) {
   const queryTaskStatus = async (taskId: string): Promise<StatusResponse | null> => {
     try {
       console.log(`[Status Check] Querying status for task: ${taskId}`);
-      const startTime = Date.now();
       
       const response = await fetch("https://api.comfyonline.app/api/query_run_workflow_status", {
         method: "POST",
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ task_id: taskId })
       });
       
-      const responseTime = Date.now() - startTime;
-      console.log(`[Status Check] Response time: ${responseTime}ms`);
-
       if (!response.ok) {
         console.error(`[Status Check] HTTP error: ${response.status}`);
-        console.error('[Status Check] Response headers:', Object.fromEntries([...response.headers]));
         return null;
       }
 
@@ -494,47 +483,9 @@ export default function DepthPage({ session }: DepthPageProps) {
     });
   };
 
-  const handleUrlSubmit = async () => {
-    if (!imageUrl || !session?.user) return;
-    
-    setIsImageLoading(true);
-    setIsImageValid(false);
-    setError(null);
-    
-    try {
-      const isValid = await validateImageUrl(imageUrl);
-      if (isValid) {
-        const { error: insertError } = await supabase
-          .from('depthmaps')
-          .insert({
-            user_id: session.user.id,
-            image_path: imageUrl
-          });
-
-        if (insertError) throw insertError;
-
-        setImage(imageUrl);
-        setIsImageValid(true);
-        setError(null);
-      } else {
-        setError('Invalid image URL or image failed to load');
-        setImage(null);
-        setIsImageValid(false);
-      }
-    } catch (err) {
-      console.error('[URL Input] Error:', err);
-      setError('Failed to load image from URL');
-      setImage(null);
-      setIsImageValid(false);
-    } finally {
-      setIsImageLoading(false);
-    }
-  };
-
   const generateImage = async () => {
     console.log('[Generation] Starting new generation request');
     console.log('[Generation] Image URL:', image);
-    console.log('[Generation] Input method:', inputMethod);
     console.log('[Generation] Image valid:', isImageValid);
     console.log('[Generation] Session:', session ? 'logged in' : 'not logged in');
     
@@ -551,11 +502,6 @@ export default function DepthPage({ session }: DepthPageProps) {
 
     if (!image || image.startsWith('blob:')) {
       setError('Please provide an image first');
-      return;
-    }
-
-    if (inputMethod === 'url' && !isImageValid) {
-      setError('Please wait for the image to load and validate');
       return;
     }
 
@@ -583,8 +529,7 @@ export default function DepthPage({ session }: DepthPageProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(body)
       });
@@ -661,12 +606,18 @@ export default function DepthPage({ session }: DepthPageProps) {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setIsTaskIdInputOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
-                >
-                  Query Task ID
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setIsTaskIdInputOpen(true)}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 ease-in-out"
+                  >
+                    Query Task ID
+                  </button>
+                  <TaskHistory onTaskSelect={(taskId) => {
+                    setManualTaskId(taskId);
+                    handleManualQuery();
+                  }} />
+                </div>
               )}
               <button
                 onClick={resetForm}
@@ -687,21 +638,7 @@ export default function DepthPage({ session }: DepthPageProps) {
             onProjectsChange={fetchProjects}
           />
 
-          <InputMethodToggle 
-            inputMethod={inputMethod}
-            onMethodChange={setInputMethod}
-          />
-
-          {inputMethod === 'file' ? (
-            <ImageUploader onImageUpload={handleImageUpload} />
-          ) : (
-            <ImageUrlInput
-              imageUrl={imageUrl}
-              isImageLoading={isImageLoading}
-              onUrlChange={setImageUrl}
-              onSubmit={handleUrlSubmit}
-            />
-          )}
+          <ImageUploader onImageUpload={handleImageUpload} />
 
           <ImagePreview 
             image={image}
@@ -726,7 +663,7 @@ export default function DepthPage({ session }: DepthPageProps) {
 
           <GenerateButton
             onClick={generateImage}
-            disabled={generating || !image || (inputMethod === 'url' && !isImageValid)}
+            disabled={generating || !image}
             generating={generating}
           />
 

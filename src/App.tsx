@@ -6,6 +6,7 @@ import { UserMenu } from './components/Auth/UserMenu';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { BalanceDisplay } from './components/Balance/BalanceDisplay';
 import DepthPage from './pages/DepthPage';
+import { InpaintPage } from './pages/InpaintPage';
 import { GalleryPage } from './pages/GalleryPage';
 
 function App() {
@@ -125,6 +126,8 @@ function App() {
       <main className="pt-28 sm:pt-20 pb-12 px-4 sm:px-6 lg:pl-72 lg:pr-8">
         {currentPage === 'designer' ? (
           <DepthPage session={session} />
+        ) : currentPage === 'inpaint' ? (
+          <InpaintPage session={session} />
         ) : (
           <GalleryPage session={session} />
         )}
