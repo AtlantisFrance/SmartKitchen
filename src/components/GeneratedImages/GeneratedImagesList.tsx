@@ -75,12 +75,55 @@ export function GeneratedImagesList({
           
           <div className="grid grid-cols-2 gap-4">
             {generation.images.map((url, imgIndex) => (
-              <div key={imgIndex} className="relative group">
-                <div className="relative">
+              <div 
+                key={imgIndex} 
+                className="relative group"
+              >
+                <div 
+                  className="relative"
+                >
                   <img 
+                    draggable="true"
+                    style={{ cursor: 'move' }}
+                    onDragStart={(e) => {
+                      // Set the drag data
+                      e.dataTransfer.setData('text/plain', url);
+                      e.dataTransfer.effectAllowed = 'copy';
+
+                      // Set drag image
+                      const img = new Image();
+                      img.src = url;
+                      img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          // Scale down the drag preview for better UX
+                          const scale = 0.2;
+                          canvas.width = img.width * scale;
+                          canvas.height = img.height * scale;
+                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                          const dragPreview = document.createElement('img');
+                          dragPreview.src = canvas.toDataURL();
+                          dragPreview.onload = () => {
+                            e.dataTransfer.setDragImage(
+                              dragPreview,
+                              dragPreview.width / 2,
+                              dragPreview.height / 2
+                            );
+                          };
+                        }
+                      };
+                      
+                      // Add visual feedback
+                      e.currentTarget.classList.add('opacity-50');
+                    }}
+                    onDragEnd={(e) => {
+                      // Remove visual feedback
+                      e.currentTarget.classList.remove('opacity-50');
+                    }}
                     src={url} 
                     alt={`Generated ${imgIndex + 1}`} 
-                    className="rounded-lg shadow-md w-full h-auto"
+                    className="rounded-lg shadow-md w-full h-auto transition-opacity duration-200"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
@@ -113,12 +156,55 @@ export function GeneratedImagesList({
           <h3 className="text-lg font-medium text-blue-900 mb-3">Current Generation</h3>
           <div className="grid grid-cols-2 gap-4">
             {currentImages.map((url, index) => (
-              <div key={index} className="relative group">
-                <div className="relative">
+              <div 
+                key={index} 
+                className="relative group"
+              >
+                <div 
+                  className="relative"
+                >
                   <img 
+                    draggable="true"
+                    style={{ cursor: 'move' }}
+                    onDragStart={(e) => {
+                      // Set the drag data
+                      e.dataTransfer.setData('text/plain', url);
+                      e.dataTransfer.effectAllowed = 'copy';
+
+                      // Set drag image
+                      const img = new Image();
+                      img.src = url;
+                      img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          // Scale down the drag preview for better UX
+                          const scale = 0.2;
+                          canvas.width = img.width * scale;
+                          canvas.height = img.height * scale;
+                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                          const dragPreview = document.createElement('img');
+                          dragPreview.src = canvas.toDataURL();
+                          dragPreview.onload = () => {
+                            e.dataTransfer.setDragImage(
+                              dragPreview,
+                              dragPreview.width / 2,
+                              dragPreview.height / 2
+                            );
+                          };
+                        }
+                      };
+                      
+                      // Add visual feedback
+                      e.currentTarget.classList.add('opacity-50');
+                    }}
+                    onDragEnd={(e) => {
+                      // Remove visual feedback
+                      e.currentTarget.classList.remove('opacity-50');
+                    }}
                     src={url} 
                     alt={`Current ${index + 1}`} 
-                    className="rounded-lg shadow-md w-full h-auto"
+                    className="rounded-lg shadow-md w-full h-auto transition-opacity duration-200"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">

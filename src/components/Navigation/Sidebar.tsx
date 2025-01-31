@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Paintbrush as PaintBrush, Images, Menu, X, Edit } from 'lucide-react';
+import { Paintbrush as PaintBrush, Images, Menu, X, Edit, Box } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
@@ -12,6 +12,7 @@ export function Sidebar({ currentPage, onNavigate, isMobileMenuOpen, setIsMobile
   const menuItems = [
     { id: 'designer', label: 'MyDesigner', icon: PaintBrush },
     { id: 'inpaint', label: 'Inpainting', icon: Edit },
+    { id: '3d', label: '3D Pictures', icon: Box },
     { id: 'gallery', label: 'MyProjects', icon: Images },
   ];
 

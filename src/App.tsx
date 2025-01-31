@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Menu } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { AuthForm } from './components/Auth/AuthForm';
+import { ThreeDPictures } from './pages/ThreeDPictures';
 import { UserMenu } from './components/Auth/UserMenu';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { BalanceDisplay } from './components/Balance/BalanceDisplay';
@@ -128,6 +129,8 @@ function App() {
           <DepthPage session={session} />
         ) : currentPage === 'inpaint' ? (
           <InpaintPage session={session} />
+        ) : currentPage === '3d' ? (
+          <ThreeDPictures session={session} />
         ) : (
           <GalleryPage session={session} />
         )}
