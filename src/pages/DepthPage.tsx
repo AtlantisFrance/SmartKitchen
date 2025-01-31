@@ -610,7 +610,7 @@ export default function DepthPage({ session }: DepthPageProps) {
     const workflowIds = {
       1: "a254baa6-52eb-4a06-9a0f-ad9a9619b842",
       2: "ba577623-b436-4875-a43c-7af55ba20323",
-      3: "6024e1fa-4405-496a-b566-c5513e0b6a8c",
+      3: "41e383a1-0895-444d-b595-3b8c1c035ea4",
       4: "9c1d61de-7eaa-482b-9af0-8e0d10165a04"
     };
     
