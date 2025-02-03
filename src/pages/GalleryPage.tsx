@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trash2, ExternalLink, FolderIcon as Folder, FolderPlus, Loader2 } from 'lucide-react';
+import { Trash2, ExternalLink, FolderIcon as Folder, FolderPlus, Loader2, ChevronDown } from 'lucide-react';
 import { ProjectAssignment } from '../components/Projects/ProjectAssignment';
 
 interface GalleryImage {
@@ -35,7 +35,7 @@ export function GalleryPage({ session }: GalleryPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [assigningProject, setAssigningProject] = useState<string | null>(null);
+  const [expandedPrompts, setExpandedPrompts] = useState<string[]>([]);
 
   useEffect(() => {
     if (session) {
@@ -347,21 +347,40 @@ export function GalleryPage({ session }: GalleryPageProps) {
                 </div>
               </div>
               <div className="p-4">
-                <div className="mb-2">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Positive:</span> {image.positive_prompt || 'None'}
-                  </p>
-                </div>
                 <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={() => setExpandedPrompts(prev => 
+                      prev.includes(image.id) 
+                        ? prev.filter(id => id !== image.id)
+                        : [...prev, image.id]
+                    )}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-700"
+                  >
+                    <span className="font-medium">Prompts</span>
+                    <ChevronDown 
+                      className={`w-4 h-4 transition-transform ${
+                        expandedPrompts.includes(image.id) ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {expandedPrompts.includes(image.id) && (
+                    <div className="mt-2 space-y-2 px-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Positive Prompt:</p>
+                        <p className="text-sm text-gray-600 mt-1">{image.positive_prompt || 'None'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Negative Prompt:</p>
+                        <p className="text-sm text-gray-600 mt-1">{image.negative_prompt || 'None'}</p>
+                      </div>
+                    </div>
+                  )}
                   <ProjectAssignment
                     imageId={image.id}
                     currentProject={image.project}
                     projects={projects}
                     onAssignSuccess={fetchImages}
                   />
-                </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Negative:</span> {image.negative_prompt || 'None'}
                 </div>
                 {image.seed && (
                   <div className="text-sm text-gray-600">

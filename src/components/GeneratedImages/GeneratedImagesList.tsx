@@ -1,5 +1,6 @@
 import { Clock, Trash2, ExternalLink } from 'lucide-react';
 import { ProjectAssignment } from '../Projects/ProjectAssignment';
+import { useState } from 'react';
 
 interface Generation {
   id: string;
@@ -14,23 +15,29 @@ interface Generation {
 interface GeneratedImagesListProps {
   generations: Generation[];
   currentImages: string[];
-  projects: Project[];
   onDelete: (generationId: string) => void;
-  onProjectAssign: () => void;
 }
 
 export function GeneratedImagesList({ 
   generations, 
   currentImages, 
-  projects,
-  onDelete,
-  onProjectAssign 
+  onDelete
 }: GeneratedImagesListProps) {
   if (generations.length === 0 && currentImages.length === 0) return null;
+
+  const [expandedPrompts, setExpandedPrompts] = useState<string[]>([]);
 
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString();
+  };
+
+  const togglePrompts = (generationId: string) => {
+    setExpandedPrompts(prev => 
+      prev.includes(generationId)
+        ? prev.filter(id => id !== generationId)
+        : [...prev, generationId]
+    );
   };
 
   return (
@@ -58,16 +65,33 @@ export function GeneratedImagesList({
               <Trash2 className="w-5 h-5" />
             </button>
           </div>
-          
-          <div className="mb-3 space-y-1">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Positive Prompt:</span> {generation.positivePrompt || 'None'}
-            </p>
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Negative Prompt:</span> {generation.negativePrompt || 'None'}
-            </p>
+
+          <div className="mb-3">
+            <button
+              onClick={() => togglePrompts(generation.id)}
+              className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-700"
+            >
+              <span className="font-medium">Prompts</span>
+              <ChevronDown 
+                className={`w-4 h-4 transition-transform ${
+                  expandedPrompts.includes(generation.id) ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+            {expandedPrompts.includes(generation.id) && (
+              <div className="mt-2 space-y-2 px-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Positive Prompt:</p>
+                  <p className="text-sm text-gray-600 mt-1">{generation.positivePrompt || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Negative Prompt:</p>
+                  <p className="text-sm text-gray-600 mt-1">{generation.negativePrompt || 'None'}</p>
+                </div>
+              </div>
+            )}
             {generation.seed && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 mt-2 px-3">
                 <span className="font-medium">Seed:</span> {generation.seed}
               </p>
             )}
@@ -136,14 +160,6 @@ export function GeneratedImagesList({
                       <ExternalLink className="w-5 h-5" />
                     </a>
                   </div>
-                </div>
-                <div className="mt-2">
-                  <ProjectAssignment
-                    imageId={generation.id}
-                    currentProject={generation.project}
-                    projects={projects}
-                    onAssignSuccess={onProjectAssign}
-                  />
                 </div>
               </div>
             ))}

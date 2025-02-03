@@ -92,33 +92,34 @@ export function TaskHistory({ onTaskSelect }: TaskHistoryProps) {
                       onTaskSelect(task.task_id);
                       setIsOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between group"
                   >
-                    <div className="flex items-center justify-between group">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">
-                            Task #{tasks.length - index}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(task.created_at).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1 font-mono truncate">
-                          {task.task_id}
-                        </p>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900">
+                          Task #{tasks.length - index}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(task.created_at).toLocaleTimeString()}
+                        </span>
                       </div>
-                      <button
-                        onClick={(e) => handleCopy(task.task_id, e)}
-                        className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Copy Task ID"
-                      >
-                        {copiedId === task.task_id ? (
-                          <Check className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+                      <p className="text-xs text-gray-500 mt-1 font-mono truncate">
+                        {task.task_id}
+                      </p>
+                    </div>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopy(task.task_id, e);
+                      }}
+                      className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      title="Copy Task ID"
+                    >
+                      {copiedId === task.task_id ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
                     </div>
                   </button>
                 </li>

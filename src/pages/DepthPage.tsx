@@ -80,6 +80,7 @@ export default function DepthPage({ session }: DepthPageProps) {
   const [isQuerying, setIsQuerying] = useState(false);
   const [manualTaskId, setManualTaskId] = useState('');
   const [isTaskIdInputOpen, setIsTaskIdInputOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const token = '49be0c4f-0a33-4a4a-a602-4f6f46a37a96';
 
@@ -239,17 +240,21 @@ export default function DepthPage({ session }: DepthPageProps) {
           // Update database and UI
           if (session?.user) {
             try {
-              await supabase
-                .from('result_images')
-                .insert({
+              // Save all generated images to the database
+              const imagesToSave = bucketUrls.map(url => ({
                   user_id: session.user.id,
-                  image_url: urls[0],
+                  image_url: url,
                   seed: seed || null,
                   project_id: selectedProject?.id || null,
                   task_id: queryTaskId,
                   positive_prompt: positivePrompt,
                   negative_prompt: negativePrompt
-                }).throwOnError();
+              }));
+
+              await supabase
+                .from('result_images')
+                .insert(imagesToSave)
+                .throwOnError();
 
               setSessionGenerations(prev => prev.map(gen => 
                 gen.id === queryTaskId 
@@ -319,7 +324,6 @@ export default function DepthPage({ session }: DepthPageProps) {
           setProgress('Generation completed successfully! 100%');
           const apiUrls = status.data.output.output_url_list;
           
-          // Store images in our bucket
           const bucketUrls = await Promise.all(apiUrls.map(async (apiUrl) => {
             try {
               // Download image from API
@@ -356,17 +360,21 @@ export default function DepthPage({ session }: DepthPageProps) {
           
           if (session?.user) {
             try {
-              await supabase
-                .from('result_images')
-                .insert({
+                // Save all generated images to the database
+                const imagesToSave = bucketUrls.map(url => ({
                   user_id: session.user.id,
-                  image_url: bucketUrls[0],
+                  image_url: url,
                   seed: seed || null,
                   project_id: selectedProject?.id || null,
                   task_id: taskId,
                   positive_prompt: positivePrompt,
                   negative_prompt: negativePrompt
-                }).throwOnError();
+                }));
+
+                await supabase
+                  .from('result_images')
+                  .insert(imagesToSave)
+                  .throwOnError();
 
               // Update the generation in the UI
               setSessionGenerations(prev => prev.map(gen => 
@@ -489,6 +497,7 @@ export default function DepthPage({ session }: DepthPageProps) {
       setIsImageValid(false);
       setGenerating(false);
       setProgress('');
+      setIsUploading(true);
       
       // Validate file size
       if (file.size > maxSize) {
@@ -550,7 +559,8 @@ export default function DepthPage({ session }: DepthPageProps) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
       setImage(null);
       setIsImageValid(false);
-      setProgress('');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -745,6 +755,7 @@ export default function DepthPage({ session }: DepthPageProps) {
           <ImageUploader
             onImageUpload={handleImageUpload}
             onImageDrop={handleImageDrop}
+            isUploading={isUploading}
           />
 
           <ImagePreview 
