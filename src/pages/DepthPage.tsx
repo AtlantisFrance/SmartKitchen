@@ -327,30 +327,41 @@ export default function DepthPage({ session }: DepthPageProps) {
           const bucketUrls = await Promise.all(apiUrls.map(async (apiUrl) => {
             try {
               // Download image from API
-              const response = await fetch(apiUrl);
+              const response = await fetch(apiUrl, { mode: 'cors' });
               if (!response.ok) throw new Error('Failed to fetch image');
               const blob = await response.blob();
 
               // Generate unique filename
               const timestamp = Date.now();
               const randomString = Math.random().toString(36).substring(2, 15);
-              const fileName = `${session.user.id}/${timestamp}-${randomString}.png`;
+              const filePath = `${session.user.id}/${timestamp}-${randomString}.png`;
 
               // Upload to our bucket
-              const { error: uploadError } = await supabase.storage
+              const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('generated-images')
-                .upload(fileName, blob);
+                .upload(filePath, blob, {
+                  contentType: 'image/png',
+                  cacheControl: '3600',
+                  upsert: false
+                });
 
               if (uploadError) throw uploadError;
 
               // Get public URL
               const { data: { publicUrl } } = supabase.storage
                 .from('generated-images')
-                .getPublicUrl(fileName);
+                .getPublicUrl(filePath);
 
               return publicUrl;
             } catch (err) {
               console.error('Failed to store generated image:', err);
+              // Log more details about the error
+              if (err instanceof Error) {
+                console.error('Error details:', {
+                  message: err.message,
+                  stack: err.stack
+                });
+              }
               return apiUrl; // Fallback to API URL if storage fails
             }
           }));
@@ -364,6 +375,7 @@ export default function DepthPage({ session }: DepthPageProps) {
                 const imagesToSave = bucketUrls.map(url => ({
                   user_id: session.user.id,
                   image_url: url,
+                  original_image_url: image,
                   seed: seed || null,
                   project_id: selectedProject?.id || null,
                   task_id: taskId,
@@ -371,20 +383,24 @@ export default function DepthPage({ session }: DepthPageProps) {
                   negative_prompt: negativePrompt
                 }));
 
-                await supabase
+                const { error: insertError } = await supabase
                   .from('result_images')
-                  .insert(imagesToSave)
-                  .throwOnError();
+                  .insert(imagesToSave);
 
-              // Update the generation in the UI
-              setSessionGenerations(prev => prev.map(gen => 
-                gen.id === taskId 
-                  ? { ...gen, images: bucketUrls }
-                  : gen
-              ));
-            } catch (err) {
-              console.error('Failed to update result in database:', err);
-            }
+                if (insertError) {
+                  console.error('Failed to save to database:', insertError);
+                  throw insertError;
+                }
+
+                setSessionGenerations(prev => prev.map(gen => 
+                  gen.id === taskId 
+                    ? { ...gen, images: bucketUrls }
+                    : gen
+                ));
+              } catch (err) {
+                console.error('Failed to update result:', err);
+                setError('Failed to save generated images');
+              }
           }
         } else {
           setError('No output images received');
@@ -393,13 +409,17 @@ export default function DepthPage({ session }: DepthPageProps) {
         setProgress('');
         setTaskId(null);
         break;
-      } else if (!status.success || status.errorMsg || status.data?.state === 'ERROR') {
+      }
+      
+      if (!status.success || status.errorMsg || status.data?.state === 'ERROR') {
         setError(status.errorMsg || 'Image generation failed');
         setGenerating(false);
         setProgress('');
         setTaskId(null);
         break;
-      } else if (status.data?.state === 'PROCESSING') {
+      }
+      
+      if (status.data?.state === 'PROCESSING') {
         // Adjust polling interval based on attempt count
         if (attempts < 5) {
           pollInterval = baseInterval; // Check frequently at first

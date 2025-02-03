@@ -35,36 +35,27 @@ const SUGGESTIONS: Suggestion[] = [
     previewUrl: 'https://vpgawuzrkdfkmcqijjcm.supabase.co/storage/v1/object/public/website-pictures//industrial.png'
   },
   {
-    id: 'luxury',
-    name: 'Cuisine Luxueuse',
-    description: 'Finitions haut de gamme et matériaux nobles',
-    positivePrompt: 'luxury kitchen design, marble countertops, high-end appliances, crystal chandelier, custom cabinetry, gold or brass fixtures, dramatic lighting, spacious layout, professional, architectural visualization',
-    negativePrompt: 'ugly, deformed, low quality render, bad lighting, unrealistic materials, poor composition, distorted perspective, blurry textures, amateur design, incorrect proportions',
-    seed: '12567',
-    previewUrl: 'https://images.unsplash.com/photo-1571843439991-dd2b8e051966?auto=format&fit=crop&q=80&w=1920&h=1080'
-  },
-  {
     id: 'vintage',
     name: 'Cuisine Vintage',
-    description: 'Style rétro avec des touches nostalgiques et des couleurs douces',
-    positivePrompt: 'A vintage kitchen inspired by the vibrant aesthetics of the 50s-70s. ((The ground)) is black-and-white checkerboard tiles or pastel-toned vinyl, evoking a nostalgic touch. ((The furniture finish)) is rounded-edge cabinetry in bright colors like mint green, mustard yellow, or coral red, reflecting the retro era. ((The counter and backsplash)) are laminate with chrome edges or colorful ceramic tiles, bringing playful charm. ((The walls)) incorporate pastel hues, fun wallpaper patterns, or classic diner-inspired paint tones. ((The lighting)) includes spherical pendant lamps, neon signs, and mid-century sconces, enhancing the retro aesthetic. The atmosphere is bold, joyful, and nostalgic, capturing the essence of mid-century design with vibrant details.',
+    description: 'Style botanique vintage avec charme rustique et naturel',
+    positivePrompt: '((Vintage greenhouse kitchen, botanical and rustic charm.))\n\n((The ground)) is black-and-white checkered tiles with a worn, vintage aesthetic, adding character and contrast.\n((The furniture finish)) is muted sage green cabinetry with classic paneling and dark metal knobs, enhancing the nostalgic charm.\n((The counter and backsplash)) feature warm butcher block wood countertops paired with vintage square ceramic tiles in earthy tones, creating a cozy and inviting workspace.\n((The walls and windows)) are deep forest green with expansive metal-framed glass panels, flooding the space with natural light and seamlessly blending the indoors with the lush outdoor greenery.\n((The lighting)) includes vintage brass pendant lamps, warm under-cabinet lighting, and soft daylight filtering through large glass windows, ensuring a natural and warm ambiance.\n\nThe atmosphere is organic, eclectic, and nostalgic, with an abundance of potted plants, earthy ceramics, and textured vintage elements enhancing the greenhouse-inspired aesthetic.',
     negativePrompt: 'ugly, deformed, bad quality, unrealistic colors, poor lighting, distorted perspective, blurry details, incorrect vintage style, amateur composition, bad architecture',
     seed: '34521',
-    previewUrl: 'https://images.unsplash.com/photo-1596994836808-35a9dd37183e?auto=format&fit=crop&q=80&w=1920&h=1080'
+    previewUrl: 'https://vpgawuzrkdfkmcqijjcm.supabase.co/storage/v1/object/public/website-pictures//natural.png'
   },
   {
     id: 'rustic',
     name: 'Cuisine Rustique',
     description: 'Ambiance chaleureuse avec matériaux naturels et bois apparent',
-    positivePrompt: 'A rustic kitchen with a warm and timeless charm. ((The ground)) is natural stone or aged wood, reflecting a cozy farmhouse feel. ((The furniture finish)) is solid wood with carved details, patinated surfaces, or soft distressed paint, evoking authenticity. ((The counter and backsplash)) feature handcrafted ceramic tiles, solid wood, or textured stone, bringing an artisanal touch. ((The walls)) are earthy tones, soft whites, or vintage floral patterns, reinforcing the traditional aesthetic. ((The lighting)) consists of wrought-iron chandeliers, rustic sconces, and warm ambient glow, enhancing the nostalgic atmosphere. The ambiance is charming, inviting, and rich in character, blending tradition with warmth.',
+    positivePrompt: '((Rustic farmhouse kitchen, warm and traditional design.))\n\n((The ground)) is natural light wood with visible grain, creating a warm and organic foundation.\n((The furniture finish)) is solid natural wood with carved details and dark metal hardware, showcasing artisanal craftsmanship.\n((The counter and backsplash)) are a mix of thick butcher block wood and polished white marble with soft veining, balancing warmth and elegance.\n((The walls)) feature exposed natural stone with a textured, earthy appearance, paired with soft white paint to enhance brightness.\n((The lighting)) includes wrought-iron pendant lamps with vintage glass shades, recessed ceiling spotlights, and natural daylight filtering through large windows, creating a cozy ambiance.\n\nThe atmosphere is inviting, warm, and rich in texture, blending raw materials with classic country charm.',
     negativePrompt: 'ugly, deformed, unrealistic textures, bad lighting, poor quality, blurry details, incorrect materials, distorted space, amateur photo, bad composition',
     seed: '89765',
-    previewUrl: 'https://images.unsplash.com/photo-1542092669-4b6be8604636?auto=format&fit=crop&q=80&w=1920&h=1080'
+    previewUrl: 'https://vpgawuzrkdfkmcqijjcm.supabase.co/storage/v1/object/public/website-pictures//rustic.png'
   },
   {
     id: 'modern',
     name: 'Cuisine Moderne',
-    description: 'Design contemporain avec technologie intégrée et finitions brillantes',
+    description: 'Design contemporain avec lignes épurées et technologie intégrée',
     positivePrompt: 'A sophisticated modern kitchen with ((sleek handleless cabinets)) in high-gloss finish, featuring integrated smart appliances. ((The countertops)) are premium quartz or polished concrete with waterfall edges. ((The backsplash)) is large-format glass panels with subtle metallic sheen. ((The lighting)) combines recessed LED strips, minimalist pendant lights over a central island, and under-cabinet illumination. ((The appliances)) are fully integrated with touch controls and smart features. ((The layout)) emphasizes clean lines with a large central island featuring a cantilevered breakfast bar. ((The color palette)) focuses on sophisticated grays, whites, and subtle metallic accents. The space includes hidden storage solutions and state-of-the-art ventilation. Professional architectural visualization with perfect composition and lighting.',
     negativePrompt: 'ugly, deformed, bad quality, unrealistic reflections, poor lighting, blurry surfaces, incorrect perspective, amateur render, distorted space, bad architecture',
     seed: '23456',

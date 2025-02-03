@@ -36,6 +36,7 @@ export function GalleryPage({ session }: GalleryPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [expandedPrompts, setExpandedPrompts] = useState<string[]>([]);
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -160,12 +161,40 @@ export function GalleryPage({ session }: GalleryPageProps) {
   const handleDelete = async (id: string) => {
     try {
       setError(null);
+      
+      // Get the image URL before deleting the record
+      const { data: imageData, error: fetchError } = await supabase
+        .from('result_images')
+        .select('image_url')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Delete from database
       const { error: deleteError } = await supabase
         .from('result_images')
         .delete()
         .eq('id', id);
 
       if (deleteError) throw deleteError;
+
+      // Extract file path from URL
+      if (imageData?.image_url) {
+        const url = new URL(imageData.image_url);
+        const filePath = url.pathname.split('/').slice(4).join('/'); // Remove /storage/v1/object/public/
+        
+        // Delete from storage bucket
+        const { error: storageError } = await supabase.storage
+          .from('generated-images')
+          .remove([filePath]);
+
+        if (storageError) {
+          console.error('Failed to delete from storage:', storageError);
+          // Don't throw here as the database record is already deleted
+        }
+      }
+
       setImages(prev => prev.filter(img => img.id !== id));
     } catch (err) {
       console.error('Error deleting image:', err);
@@ -212,6 +241,59 @@ export function GalleryPage({ session }: GalleryPageProps) {
     }
   };
 
+  const handleClearGallery = async () => {
+    if (!confirm('Are you sure you want to delete ALL your generated images? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsClearing(true);
+      setError(null);
+      setSuccess(null);
+
+      // Get all image URLs before deleting records
+      const { data: imageData, error: fetchError } = await supabase
+        .from('result_images')
+        .select('image_url')
+        .eq('user_id', session.user.id);
+
+      if (fetchError) throw fetchError;
+
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('result_images')
+        .delete()
+        .eq('user_id', session.user.id);
+
+      if (deleteError) throw deleteError;
+
+      // Delete all files from storage
+      if (imageData && imageData.length > 0) {
+        const filePaths = imageData.map(img => {
+          const url = new URL(img.image_url);
+          return url.pathname.split('/').slice(4).join('/'); // Remove /storage/v1/object/public/
+        });
+
+        const { error: storageError } = await supabase.storage
+          .from('generated-images')
+          .remove(filePaths);
+
+        if (storageError) {
+          console.error('Failed to delete some files from storage:', storageError);
+          // Don't throw here as the database records are already deleted
+        }
+      }
+
+      setImages([]);
+      setSuccess('All images have been deleted successfully');
+    } catch (err) {
+      console.error('Error clearing gallery:', err);
+      setError('Failed to clear gallery');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -222,7 +304,21 @@ export function GalleryPage({ session }: GalleryPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">My Projects</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">My Projects</h2>
+        <button
+          onClick={handleClearGallery}
+          disabled={isClearing || images.length === 0}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {isClearing ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4 mr-2" />
+          )}
+          Clear All Generated Images
+        </button>
+      </div>
       
       {/* Project Creation Form */}
       <div className="mb-8">
