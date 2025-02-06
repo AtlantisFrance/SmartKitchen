@@ -234,6 +234,37 @@ export default function DepthPage({ session }: DepthPageProps) {
       if (status.success && status.data?.state === 'COMPLETED') {
         if (status.data.output?.output_url_list) {
           const urls = status.data.output.output_url_list;
+          const bucketUrls = await Promise.all(urls.map(async (apiUrl) => {
+            try {
+              // Download image from API
+              const response = await fetch(apiUrl);
+              if (!response.ok) throw new Error('Failed to fetch image');
+              const blob = await response.blob();
+
+              // Generate unique filename
+              const timestamp = Date.now();
+              const randomString = Math.random().toString(36).substring(2, 15);
+              const fileName = `${session.user.id}/${timestamp}-${randomString}.png`;
+
+              // Upload to our bucket
+              const { error: uploadError } = await supabase.storage
+                .from('generated-images')
+                .upload(fileName, blob);
+
+              if (uploadError) throw uploadError;
+
+              // Get public URL
+              const { data: { publicUrl } } = supabase.storage
+                .from('generated-images')
+                .getPublicUrl(fileName);
+
+              return publicUrl;
+            } catch (err) {
+              console.error('Failed to store generated image:', err);
+              return apiUrl; // Fallback to API URL if storage fails
+            }
+          }));
+
           setGeneratedImages(urls);
           setSuccess('Generation completed!');
           
@@ -641,7 +672,8 @@ export default function DepthPage({ session }: DepthPageProps) {
       1: "a254baa6-52eb-4a06-9a0f-ad9a9619b842",
       2: "ba577623-b436-4875-a43c-7af55ba20323",
       3: "41e383a1-0895-444d-b595-3b8c1c035ea4",
-      4: "9c1d61de-7eaa-482b-9af0-8e0d10165a04"
+      4: "9c1d61de-7eaa-482b-9af0-8e0d10165a04",
+      20: "8881c7cf-dc4b-492f-b704-dee6bf545017"
     };
     
     try {
@@ -809,12 +841,16 @@ export default function DepthPage({ session }: DepthPageProps) {
               <input
                 type="range"
                 min="1"
-                max="4"
+                max="5"
+                step="1"
                 value={iterations}
-                onChange={(e) => setIterations(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setIterations(value === 5 ? 20 : value);
+                }}
                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
-              <span className="text-sm font-medium text-gray-900 w-8 text-center">{iterations}</span>
+              <span className="text-sm font-medium text-gray-900 min-w-[2rem] text-center">{iterations}</span>
             </div>
             <p className="text-sm text-gray-500">
               Générer {iterations} {iterations === 1 ? 'image' : 'images'} en une seule fois

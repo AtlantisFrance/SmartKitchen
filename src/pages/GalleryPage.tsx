@@ -416,12 +416,12 @@ export function GalleryPage({ session }: GalleryPageProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {images.map((image) => (
-            <div key={image.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div key={image.id} className="bg-white rounded-lg shadow-md overflow-visible">
               <div className="relative group">
                 <img
                   src={image.image_url}
                   alt="Generated kitchen"
-                  className="w-full h-48 object-cover"
+                  className="w-full h-48 object-cover rounded-t-lg"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <div className="flex space-x-2">
@@ -442,7 +442,7 @@ export function GalleryPage({ session }: GalleryPageProps) {
                   </div>
                 </div>
               </div>
-              <div className="p-4">
+              <div className="p-4 relative">
                 <div className="flex items-center justify-between mb-2">
                   <button
                     onClick={() => setExpandedPrompts(prev => 
@@ -450,7 +450,7 @@ export function GalleryPage({ session }: GalleryPageProps) {
                         ? prev.filter(id => id !== image.id)
                         : [...prev, image.id]
                     )}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-700"
+                    className="flex-1 flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-700 mr-2"
                   >
                     <span className="font-medium">Prompts</span>
                     <ChevronDown 
@@ -459,18 +459,6 @@ export function GalleryPage({ session }: GalleryPageProps) {
                       }`}
                     />
                   </button>
-                  {expandedPrompts.includes(image.id) && (
-                    <div className="mt-2 space-y-2 px-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Positive Prompt:</p>
-                        <p className="text-sm text-gray-600 mt-1">{image.positive_prompt || 'None'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Negative Prompt:</p>
-                        <p className="text-sm text-gray-600 mt-1">{image.negative_prompt || 'None'}</p>
-                      </div>
-                    </div>
-                  )}
                   <ProjectAssignment
                     imageId={image.id}
                     currentProject={image.project}
@@ -478,6 +466,18 @@ export function GalleryPage({ session }: GalleryPageProps) {
                     onAssignSuccess={fetchImages}
                   />
                 </div>
+                {expandedPrompts.includes(image.id) && (
+                  <div className="mt-2 space-y-2 px-3 bg-gray-50 rounded-lg p-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Positive Prompt:</p>
+                      <p className="text-sm text-gray-600 mt-1">{image.positive_prompt || 'None'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Negative Prompt:</p>
+                      <p className="text-sm text-gray-600 mt-1">{image.negative_prompt || 'None'}</p>
+                    </div>
+                  </div>
+                )}
                 {image.seed && (
                   <div className="text-sm text-gray-600">
                     <span className="font-medium">Seed:</span> {image.seed}

@@ -56,7 +56,7 @@ export function ProjectAssignment({ imageId, currentProject, projects, onAssignS
         </button>
         
         {isOpen && (
-          <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+          <div className="absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
             <div className="py-1">
               <button
                 onClick={async () => {
@@ -102,7 +102,7 @@ export function ProjectAssignment({ imageId, currentProject, projects, onAssignS
       </button>
       
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+        <div className="absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
           {projects.map(project => (
             <button
               key={project.id}
@@ -117,7 +117,7 @@ export function ProjectAssignment({ imageId, currentProject, projects, onAssignS
       )}
 
       {error && (
-        <div className="absolute z-20 mt-1 w-48 p-2 bg-red-50 text-red-600 text-xs rounded-md border border-red-100">
+        <div className="absolute z-50 mt-1 w-48 p-2 bg-red-50 text-red-600 text-xs rounded-md border border-red-100">
           {error}
         </div>
       )}
