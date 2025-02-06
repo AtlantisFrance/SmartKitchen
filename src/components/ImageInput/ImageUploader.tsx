@@ -102,8 +102,8 @@ export function ImageUploader({ onImageUpload, onImageDrop, isUploading = false 
       img.onload = () => {
         URL.revokeObjectURL(objectUrl);
         
-        if (img.height > 1280) {
-          reject(new Error('Image height must be 1280 pixels or less'));
+        if (img.width > 2048 || img.height > 2048) {
+          reject(new Error('Image dimensions must be 2048x2048 pixels or less'));
           return;
         }
 
@@ -231,7 +231,7 @@ export function ImageUploader({ onImageUpload, onImageDrop, isUploading = false 
               </label>
               <p className="pl-1">ou glisser-déposer</p>
             </div>
-            <p className="text-xs text-gray-500">PNG ou JPG jusqu'à 10MB, hauteur max 1280px</p>
+            <p className="text-xs text-gray-500">PNG ou JPG jusqu'à 10MB, dimensions max 2048x2048px</p>
             {validationError && (
               <p className="text-xs text-red-600 mt-2">{validationError}</p>
             )}
